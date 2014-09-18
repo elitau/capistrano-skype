@@ -3,7 +3,7 @@ require "capistrano"
 
 module Capistrano
   module Skype
-    class SkypeInterface
+    class MacOSSkypeInterface
       attr_accessor :target_chat_id
 
       SCRIPT_PATH = File.join(File.dirname(__FILE__), "../../applescripts/")
@@ -25,7 +25,6 @@ module Capistrano
 
         chats.gsub("CHATS ", "").split(",").each do |chat_id|
           details = (get_topic_for_chat chat_id).chomp.split("TOPIC ")
-          puts details
           topic = details[1].chomp if details.size > 1
           found_chat_id = chat_id if topic == target_topic
         end
@@ -34,26 +33,64 @@ module Capistrano
       end
 
       def send_message(message)
-        `osascript #{SCRIPT_PATH}send_message.applescript '#{@target_chat_id}' '#{message}'`  unless target_chat_id.nil?
+        `osascript #{SCRIPT_PATH}send_message.applescript '#{@target_chat_id}' '#{message}'` unless target_chat_id.nil?
       end
-
     end
   end
 end
 
 namespace :deploy do
-  desc 'Post an event to graphite'
-  task :notify_skype, :action do |t, args|
-    action = args[:action]
-    on roles(:all) do
-      SkypeInterface.new('DEV Chat Rails').send_message("Deploy #{action}")
+  namespace :skype do
+    def send_message(message)
+      if fetch(:skype_chat_name).to_s.empty?
+        warn("Could not notify skype chat: please set `skype_chat_name`.")
+      else
+        Capistrano::Skype::MacOSSkypeInterface.new(fetch(:skype_chat_name)).send_message(message)
+      end
+    end
+
+    desc 'Send deploy started'
+    task :started do
+      on roles(:all) do
+        message = "[#{fetch(:application)}]" \
+                  "(#{fetch(:stage).upcase})" \
+                  " Deploy started" \
+                  " (F)"
+
+        send_message(message)
+      end
+    end
+
+    desc 'Send deploy finished'
+    task :finished do
+      def commit_url(revision)
+        if !fetch(:project_url).to_s.empty?
+          "#{fetch(:project_url)}/commit/#{revision}"
+        else
+          "Revision #{revision}"
+        end
+      end
+
+      on roles(:all) do
+        message = "Finished deploy of " \
+                  " #{commit_url(fetch(:current_revision))}" \
+                  " (#{fetch(:branch)})" \
+                  " (sun)"
+
+        send_message(message)
+      end
+    end
+
+    desc 'Send deploy rollback'
+    task :rollback do
+      on roles(:all) do
+        message = "(doh) Deployment failed. Rolled back (doh)"
+        send_message(message)
+      end
     end
   end
 
-  # after 'deploy:finished', 'deploy:notify_skype:finished'
-
-  # after 'deploy:started', 'notify_skype_deploy' do
-  #   Rake::Task['deploy:notify_skype'].invoke 'started'
-  # end
-
+  after 'deploy:started',            'deploy:skype:started'
+  after 'deploy:finished',           'deploy:skype:finished'
+  after 'deploy:finishing_rollback', 'deploy:skype:rollback'
 end
