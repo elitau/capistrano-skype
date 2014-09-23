@@ -54,10 +54,9 @@ namespace :deploy do
       on roles(:all) do
         message = "[#{fetch(:application)}]" \
                   "(#{fetch(:stage).upcase})" \
-                  " Deploy started" \
-                  " (F)"
+                  " Deploy started"
 
-        send_message(message)
+        send_message(fetch(:started_notification) || message)
       end
     end
 
@@ -74,10 +73,9 @@ namespace :deploy do
       on roles(:all) do
         message = "Finished deploy of " \
                   " #{commit_url(fetch(:current_revision))}" \
-                  " (#{fetch(:branch)})" \
-                  " (sun)"
+                  " (#{fetch(:branch)})"
 
-        send_message(message)
+        send_message(fetch(:finished_notification) || message)
       end
     end
 
@@ -85,7 +83,7 @@ namespace :deploy do
     task :rollback do
       on roles(:all) do
         message = "(doh) Deployment failed. Rolled back (doh)"
-        send_message(message)
+        send_message(fetch(:rollback_notification) || message)
       end
     end
   end
