@@ -52,6 +52,7 @@ namespace :deploy do
     desc 'Send deploy started'
     task :started do
       on roles(:all) do
+        info("Sending started notification to skype")
         message = "[#{fetch(:application)}]" \
                   "(#{fetch(:stage).upcase})" \
                   " Deploy started"
@@ -71,6 +72,7 @@ namespace :deploy do
       end
 
       on roles(:all) do
+        info("Sending finished notification to skype")
         message = "Finished deploy of " \
                   " #{commit_url(fetch(:current_revision))}" \
                   " (#{fetch(:branch)})"
@@ -82,6 +84,7 @@ namespace :deploy do
     desc 'Send deploy rollback'
     task :rollback do
       on roles(:all) do
+        info("Sending rollback notification to skype")
         message = "(doh) Deployment failed. Rolled back (doh)"
         send_message(fetch(:rollback_notification) || message)
       end
